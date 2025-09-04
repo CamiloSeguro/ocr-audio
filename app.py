@@ -218,8 +218,7 @@ with left:
         "<span class='badge'>Rápido</span> <span class='badge'>Accesible</span> <span class='badge'>Multi-idioma</span>",
         unsafe_allow_html=True,
     )
-with right:
-    st.info("Consejo: mejora la precisión con **Grises + Umbral** y buena iluminación.")
+
 
 # ────────────────────────────── Tabs ────────────────────────────── #
 tab_capture, tab_ocr, tab_tts, tab_about = st.tabs(["📷 Captura", "🔎 OCR", "🔁 Traducción & Audio", "ℹ️ Acerca de"])
