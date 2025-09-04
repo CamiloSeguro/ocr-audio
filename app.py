@@ -32,7 +32,7 @@ THEMES = {
     "Oscuro": {
         "bg": "#0f1115",
         "panel": "#151822",
-        "text": "#e6e6e6",
+        "text": "#ffffff",
         "muted": "#9aa3b2",
         "brand": "#7c5cff",
         "border": "rgba(255,255,255,.08)",
