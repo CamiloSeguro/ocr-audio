@@ -2,7 +2,9 @@ import os
 import io
 import glob
 import time
+import base64
 from datetime import datetime
+
 
 import cv2
 import numpy as np
