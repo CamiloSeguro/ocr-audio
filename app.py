@@ -90,79 +90,93 @@ TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
 translator = Translator()
 
+
 LANG_MAP = {
-    "Inglés": "en",
-    "Español": "es",
-    "Bengalí": "bn",
-    "Coreano": "ko",
-    "Mandarín": "zh-cn",
-    "Japonés": "ja",
+"Inglés": "en",
+"Español": "es",
+"Bengalí": "bn",
+"Coreano": "ko",
+"Mandarín": "zh-cn",
+"Japonés": "ja",
 }
 
+
 TLD_MAP = {
-    "Default": "com",
-    "India": "co.in",
-    "United Kingdom": "co.uk",
-    "United States": "com",
-    "Canada": "ca",
-    "Australia": "com.au",
-    "Ireland": "ie",
-    "South Africa": "co.za",
+"Default": "com",
+"India": "co.in",
+"United Kingdom": "co.uk",
+"United States": "com",
+"Canada": "ca",
+"Australia": "com.au",
+"Ireland": "ie",
+"South Africa": "co.za",
 }
 
 
 def remove_old_files(days: int = 7):
-    now = time.time()
-    for f in glob.glob(os.path.join(TEMP_DIR, "*.mp3")):
-        try:
-            if os.stat(f).st_mtime < now - days * 86400:
-                os.remove(f)
-        except Exception:
-            pass
+now = time.time()
+for f in glob.glob(os.path.join(TEMP_DIR, "*.mp3")):
+try:
+if os.stat(f).st_mtime < now - days * 86400:
+os.remove(f)
+except Exception:
+pass
 
 
 remove_old_files()
 
+
 @st.cache_data(show_spinner=False)
 def bytes_to_cv2_image(file_bytes: bytes) -> np.ndarray:
-    return cv2.imdecode(np.frombuffer(file_bytes, np.uint8), cv2.IMREAD_COLOR)
+return cv2.imdecode(np.frombuffer(file_bytes, np.uint8), cv2.IMREAD_COLOR)
+
+
+@st.cache_data(show_spinner=False)
+def pil_to_cv2(pil_img: Image.Image) -> np.ndarray:
+return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+
 
 @st.cache_data(show_spinner=False)
 def preprocess_image(img_bgr: np.ndarray, *, grayscale: bool, invert: bool, thresh: bool, blur_ksize: int) -> np.ndarray:
-    img = img_bgr.copy()
-    if grayscale:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if blur_ksize and blur_ksize % 2 == 1:
-        img = cv2.GaussianBlur(img, (blur_ksize, blur_ksize), 0)
-    if thresh:
-        if img.ndim == 3:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-    if invert:
-        img = cv2.bitwise_not(img)
-    # always return RGB for display
-    if img.ndim == 2:
-        return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+img = img_bgr.copy()
+if grayscale:
+img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+if blur_ksize and blur_ksize % 2 == 1:
+img = cv2.GaussianBlur(img, (blur_ksize, blur_ksize), 0)
+if thresh:
+if img.ndim == 3:
+img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+if invert:
+img = cv2.bitwise_not(img)
+# Asegurar salida RGB para mostrar y para Tesseract (que acepta BGR/GRAY igualmente)
+if img.ndim == 2:
+img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+else:
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+return img_rgb
+
 
 @st.cache_data(show_spinner=False)
 def ocr_extract(img_rgb: np.ndarray, tess_lang: str = "eng"):
-    text = pytesseract.image_to_string(img_rgb, lang=tess_lang)
-    data = pytesseract.image_to_data(img_rgb, lang=tess_lang, output_type=pytesseract.Output.DICT)
-    confs = [int(c) for c in data.get("conf", []) if str(c).isdigit() and int(c) >= 0]
-    mean_conf = float(np.mean(confs)) if confs else 0.0
-    return text, mean_conf
+# Texto simple
+text = pytesseract.image_to_string(img_rgb, lang=tess_lang)
+# Métricas
+data = pytesseract.image_to_data(img_rgb, lang=tess_lang, output_type=pytesseract.Output.DICT)
+confs = [int(c) for c in data.get("conf", []) if str(c).isdigit() and int(c) >= 0]
+mean_conf = float(np.mean(confs)) if confs else 0.0
+return text, mean_conf
 
 
 def text_to_speech(input_language: str, output_language: str, text: str, tld: str):
-    translation = translator.translate(text or "", src=input_language, dest=output_language)
-    trans_text = translation.text
-    safe_stub = (trans_text.strip() or "audio").replace("\n", " ")[:32]
-    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_stub}.mp3"
-    out_path = os.path.join(TEMP_DIR, filename)
-    tts = gTTS(trans_text, lang=output_language, tld=tld, slow=False)
-    tts.save(out_path)
-    return out_path, trans_text
+translation = translator.translate(text or "", src=input_language, dest=output_language)
+trans_text = translation.text
+safe_stub = (trans_text.strip() or "audio").replace("\n", " ")[:32]
+filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_stub}.mp3"
+out_path = os.path.join(TEMP_DIR, filename)
+tts = gTTS(trans_text, lang=output_language, tld=tld, slow=False)
+tts.save(out_path)
+return out_path, trans_text
 
 # ────────────────────────────── Sidebar ────────────────────────────── #
 with st.sidebar:
