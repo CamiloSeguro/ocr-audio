@@ -29,14 +29,6 @@ THEMES = {
         "brand": "#7c5cff",
         "border": "rgba(0,0,0,.08)",
     },
-    "Oscuro": {
-        "bg": "#0f1115",
-        "panel": "#151822",
-        "text": "#ffffff",
-        "muted": "#9aa3b2",
-        "brand": "#7c5cff",
-        "border": "rgba(255,255,255,.08)",
-    },
 }
 
 if "ui_theme" not in st.session_state:
