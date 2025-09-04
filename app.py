@@ -14,76 +14,44 @@ from googletrans import Translator
 
 # ────────────────────────────── Config & Theme ────────────────────────────── #
 st.set_page_config(
-    page_title="OCR + Traducción + TTS",
-    page_icon="🧠",
-    layout="wide",
-    initial_sidebar_state="expanded",
+page_title="OCR + Traducción + TTS",
+page_icon="🧠",
+layout="wide",
+initial_sidebar_state="expanded",
 )
 
-THEMES = {
-    "Claro": {
-        "bg": "#F5F7FB",
-        "panel": "#FFFFFF",
-        "text": "#0F1115",
-        "muted": "#5B6473",
-        "brand": "#5B6CFF",
-        "border": "rgba(15,17,21,0.08)",
-    },
-    "Oscuro": {
-        "bg": "#0f1115",
-        "panel": "#151822",
-        "text": "#e6e6e6",
-        "muted": "#9aa3b2",
-        "brand": "#7c5cff",
-        "border": "rgba(255,255,255,0.08)",
-    },
+
+CUSTOM_CSS = """
+<style>
+:root {
+--bg: #f9f9fb;
+--panel: #ffffff;
+--text: #222222;
+--muted: #555555;
+--brand: #7c5cff;
 }
-
-if "ui_theme" not in st.session_state:
-    st.session_state.ui_theme = "Claro"  # default legible
-
-
-def inject_theme(theme_name: str):
-    t = THEMES.get(theme_name, THEMES["Claro"])
-    css = f"""
-    <style>
-    :root {{
-      --bg: {t['bg']};
-      --panel: {t['panel']};
-      --text: {t['text']};
-      --muted: {t['muted']};
-      --brand: {t['brand']};
-      --border: {t['border']};
-    }}
-    /* Fondos */
-    [data-testid="stAppViewContainer"] > .main {{ background: var(--bg); }}
-    section[data-testid="stSidebar"] {{ background: var(--panel); }}
-    /* Tipografía global */
-    html, body, [class^="css"], .stMarkdown, .stText, .stAlert * {{ color: var(--text) !important; }}
-    /* Contenedor */
-    .block-container {{ padding-top: 1.2rem; }}
-    /* Tarjetas */
-    .card {{ background: var(--panel); border: 1px solid var(--border); padding: 18px; border-radius: 16px; }}
-    /* Botones */
-    .stButton > button {{ background: var(--brand) !important; color: #fff !important; border-radius: 12px; border: none; }}
-    /* Inputs */
-    .stTextArea textarea, .stTextInput input {{ background: rgba(0,0,0,0.03); color: var(--text); border-radius: 12px; }}
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {{ gap: .5rem; }}
-    .stTabs [data-baseweb="tab"] {{ background: var(--panel); border-radius: 12px; color: var(--text); }}
-    /* BaseWeb widgets */
-    [data-baseweb="select"], [data-baseweb="slider"], [data-baseweb="radio"], [data-baseweb="checkbox"] {{ color: var(--text) !important; }}
-    [data-baseweb="select"] * {{ color: var(--text) !important; }}
-    [data-baseweb="select"] div {{ background-color: transparent; }}
-    [data-baseweb="tag"] {{ color: var(--text) !important; }}
-    label {{ color: var(--text) !important; }}
-    /* Badges */
-    .badge {{ display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .6rem; border:1px solid var(--border); border-radius:999px; font-size:.8rem; color:var(--muted); }}
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
-
-inject_theme(st.session_state.ui_theme)
+/* Fondo y tipografía */
+section[data-testid="stSidebar"] {background: var(--panel);}
+.block-container {padding-top: 1.2rem; background: var(--bg);}
+html, body, [class^="css"] { color: var(--text) !important; }
+/* Tarjetas */
+.card { background: var(--panel); border: 1px solid rgba(0,0,0,0.08); padding: 18px; border-radius: 16px; }
+/* Botones */
+.stButton > button { background: var(--brand) !important; color: white !important; border-radius: 12px; border: none; }
+/* Inputs */
+.stTextArea textarea, .stTextInput input { background: #f1f1f5; color: #111; border-radius: 12px; }
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] { gap: .5rem; }
+.stTabs [data-baseweb="tab"] { background: var(--panel); border-radius: 12px; color: var(--text); }
+/* Alerts (fix recorte y bordes) */
+div[data-testid="stAlert"] { border-radius: 12px !important; overflow: visible !important; }
+div[data-testid="stAlert"] > div { border-radius: 12px !important; }
+div[data-testid="stAlert"] p { margin: 0 !important; }
+/* Badges */
+.badge { display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .6rem; border:1px solid rgba(0,0,0,.08); border-radius:999px; font-size:.8rem; color:var(--muted); }
+</style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # ────────────────────────────── Utils ────────────────────────────── #
 TEMP_DIR = "temp"
