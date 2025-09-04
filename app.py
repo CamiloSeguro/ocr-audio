@@ -2,7 +2,6 @@ import os
 import io
 import glob
 import time
-import base64
 from datetime import datetime
 
 import cv2
@@ -21,33 +20,70 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-CUSTOM_CSS = """
-<style>
-:root {
-  --bg: #0f1115;
-  --panel: #151822;
-  --text: #e6e6e6;
-  --muted: #9aa3b2;
-  --brand: #7c5cff;
+THEMES = {
+    "Claro": {
+        "bg": "#F5F7FB",
+        "panel": "#FFFFFF",
+        "text": "#0F1115",
+        "muted": "#5B6473",
+        "brand": "#5B6CFF",
+        "border": "rgba(15,17,21,0.08)",
+    },
+    "Oscuro": {
+        "bg": "#0f1115",
+        "panel": "#151822",
+        "text": "#e6e6e6",
+        "muted": "#9aa3b2",
+        "brand": "#7c5cff",
+        "border": "rgba(255,255,255,0.08)",
+    },
 }
-/* Fondo y tipografía */
-section[data-testid="stSidebar"] {background: var(--panel);} 
-.block-container {padding-top: 1.2rem;}
-html, body, [class^="css"] { color: var(--text) !important; }
-/* Tarjetas */
-.card { background: var(--panel); border: 1px solid rgba(255,255,255,0.06); padding: 18px; border-radius: 16px; }
-/* Botones */
-.stButton > button { background: var(--brand) !important; color: white !important; border-radius: 12px; border: none; }
-/* Inputs */
-.stTextArea textarea, .stTextInput input { background: #0c0e14; color: #e6e6e6; border-radius: 12px; }
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] { gap: .5rem; }
-.stTabs [data-baseweb="tab"] { background: var(--panel); border-radius: 12px; }
-/* Badges */
-.badge { display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .6rem; border:1px solid rgba(255,255,255,.08); border-radius:999px; font-size:.8rem; color:var(--muted); }
-</style>
-"""
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+if "ui_theme" not in st.session_state:
+    st.session_state.ui_theme = "Claro"  # default legible
+
+
+def inject_theme(theme_name: str):
+    t = THEMES.get(theme_name, THEMES["Claro"])
+    css = f"""
+    <style>
+    :root {{
+      --bg: {t['bg']};
+      --panel: {t['panel']};
+      --text: {t['text']};
+      --muted: {t['muted']};
+      --brand: {t['brand']};
+      --border: {t['border']};
+    }}
+    /* Fondos */
+    [data-testid="stAppViewContainer"] > .main {{ background: var(--bg); }}
+    section[data-testid="stSidebar"] {{ background: var(--panel); }}
+    /* Tipografía global */
+    html, body, [class^="css"], .stMarkdown, .stText, .stAlert * {{ color: var(--text) !important; }}
+    /* Contenedor */
+    .block-container {{ padding-top: 1.2rem; }}
+    /* Tarjetas */
+    .card {{ background: var(--panel); border: 1px solid var(--border); padding: 18px; border-radius: 16px; }}
+    /* Botones */
+    .stButton > button {{ background: var(--brand) !important; color: #fff !important; border-radius: 12px; border: none; }}
+    /* Inputs */
+    .stTextArea textarea, .stTextInput input {{ background: rgba(0,0,0,0.03); color: var(--text); border-radius: 12px; }}
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {{ gap: .5rem; }}
+    .stTabs [data-baseweb="tab"] {{ background: var(--panel); border-radius: 12px; color: var(--text); }}
+    /* BaseWeb widgets */
+    [data-baseweb="select"], [data-baseweb="slider"], [data-baseweb="radio"], [data-baseweb="checkbox"] {{ color: var(--text) !important; }}
+    [data-baseweb="select"] * {{ color: var(--text) !important; }}
+    [data-baseweb="select"] div {{ background-color: transparent; }}
+    [data-baseweb="tag"] {{ color: var(--text) !important; }}
+    label {{ color: var(--text) !important; }}
+    /* Badges */
+    .badge {{ display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .6rem; border:1px solid var(--border); border-radius:999px; font-size:.8rem; color:var(--muted); }}
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+inject_theme(st.session_state.ui_theme)
 
 # ────────────────────────────── Utils ────────────────────────────── #
 TEMP_DIR = "temp"
@@ -74,6 +110,7 @@ TLD_MAP = {
     "South Africa": "co.za",
 }
 
+
 def remove_old_files(days: int = 7):
     now = time.time()
     for f in glob.glob(os.path.join(TEMP_DIR, "*.mp3")):
@@ -83,15 +120,12 @@ def remove_old_files(days: int = 7):
         except Exception:
             pass
 
+
 remove_old_files()
 
 @st.cache_data(show_spinner=False)
 def bytes_to_cv2_image(file_bytes: bytes) -> np.ndarray:
     return cv2.imdecode(np.frombuffer(file_bytes, np.uint8), cv2.IMREAD_COLOR)
-
-@st.cache_data(show_spinner=False)
-def pil_to_cv2(pil_img: Image.Image) -> np.ndarray:
-    return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
 @st.cache_data(show_spinner=False)
 def preprocess_image(img_bgr: np.ndarray, *, grayscale: bool, invert: bool, thresh: bool, blur_ksize: int) -> np.ndarray:
@@ -106,22 +140,19 @@ def preprocess_image(img_bgr: np.ndarray, *, grayscale: bool, invert: bool, thre
         img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
     if invert:
         img = cv2.bitwise_not(img)
-    # Asegurar salida RGB para mostrar y para Tesseract (que acepta BGR/GRAY igualmente)
+    # always return RGB for display
     if img.ndim == 2:
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-    else:
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    return img_rgb
+        return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 @st.cache_data(show_spinner=False)
 def ocr_extract(img_rgb: np.ndarray, tess_lang: str = "eng"):
-    # Texto simple
     text = pytesseract.image_to_string(img_rgb, lang=tess_lang)
-    # Métricas
     data = pytesseract.image_to_data(img_rgb, lang=tess_lang, output_type=pytesseract.Output.DICT)
     confs = [int(c) for c in data.get("conf", []) if str(c).isdigit() and int(c) >= 0]
     mean_conf = float(np.mean(confs)) if confs else 0.0
     return text, mean_conf
+
 
 def text_to_speech(input_language: str, output_language: str, text: str, tld: str):
     translation = translator.translate(text or "", src=input_language, dest=output_language)
@@ -136,6 +167,14 @@ def text_to_speech(input_language: str, output_language: str, text: str, tld: st
 # ────────────────────────────── Sidebar ────────────────────────────── #
 with st.sidebar:
     st.markdown("### 🛠️ Controles")
+
+    st.session_state.ui_theme = st.radio(
+        "Tema de la interfaz",
+        ["Claro", "Oscuro"],
+        index=0 if st.session_state.ui_theme == "Claro" else 1,
+        horizontal=True,
+    )
+    inject_theme(st.session_state.ui_theme)
 
     source = st.radio("Fuente de imagen", ["Cámara", "Subir archivo"], horizontal=True)
 
@@ -167,9 +206,9 @@ with right:
 # ────────────────────────────── Tabs ────────────────────────────── #
 tab_capture, tab_ocr, tab_tts, tab_about = st.tabs(["📷 Captura", "🔎 OCR", "🔁 Traducción & Audio", "ℹ️ Acerca de"])
 
-# Session state para compartir datos entre tabs
+# Session state
 if "latest_image" not in st.session_state:
-    st.session_state.latest_image = None  # numpy RGB
+    st.session_state.latest_image = None
 if "ocr_text" not in st.session_state:
     st.session_state.ocr_text = ""
 if "ocr_conf" not in st.session_state:
@@ -250,12 +289,18 @@ with tab_tts:
 
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        input_language = LANG_MAP[in_lang_label]
-        output_language = LANG_MAP[out_lang_label]
+        input_language = LANG_MAP[st.session_state.get('in_lang_label', 'Español')] if 'in_lang_label' in st.session_state else LANG_MAP['Español']
+        output_language = LANG_MAP[st.session_state.get('out_lang_label', 'Inglés')] if 'out_lang_label' in st.session_state else LANG_MAP['Inglés']
     with col2:
-        tld = TLD_MAP[tld_label]
+        tld = TLD_MAP[st.session_state.get('tld_label', 'Default')] if 'tld_label' in st.session_state else TLD_MAP['Default']
     with col3:
         play_direct = st.toggle("Reproducir automáticamente", value=True)
+
+    # (los selectboxes están en sidebar; aquí usamos sus valores de session_state)
+    input_language = LANG_MAP.get(st.session_state.get('Lenguaje de entrada', 'Español'), 'es')
+    output_language = LANG_MAP.get(st.session_state.get('Lenguaje de salida', 'Inglés'), 'en')
+    tld = TLD_MAP.get(st.session_state.get('Acento de inglés (TLD)', 'Default'), 'com')
+    show_output_text = st.session_state.get('Mostrar texto traducido', True)
 
     do_translate = st.button("Traducir y generar audio", use_container_width=True)
     if do_translate:
@@ -278,10 +323,10 @@ with tab_about:
     st.markdown("""
 **OCR + Traducción + TTS**
 
-- Pipeline rápido con preprocesamiento (Grises, Umbral, Invertir, Desenfoque) para mejorar precisión.
+- Preprocesamiento (Grises, Umbral, Invertir, Desenfoque) para mejorar precisión.
 - Soporta **Tesseract** en *spa/eng/eng+spa* y traducción con *googletrans*.
-- Generación de voz con **gTTS** (acento configurable por TLD).
-- Exporta **texto (.txt)** y **audio (.mp3)**.
+- Generación de voz con **gTTS** (acento por TLD) y descargas.
+- Toggle **Claro/Oscuro** para legibilidad en cualquier display.
 
-> Tip: Para OCR en otros idiomas instala paquetes Tesseract (ej.: `tesseract-ocr-spa`).
+> Tip: para OCR en otros idiomas instala paquetes Tesseract (ej.: `tesseract-ocr-spa`).
 """)
